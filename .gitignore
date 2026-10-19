@@ -1,0 +1,6 @@
+*.exe
+*.ini
+*.log
+*.hidden
+*.old
+*.new
