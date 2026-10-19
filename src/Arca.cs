@@ -11,8 +11,8 @@ using Microsoft.Win32;
 [assembly: AssemblyTitle("arca")]
 [assembly: AssemblyProduct("arca")]
 [assembly: AssemblyDescription("A box of tiny Windows tools")]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyVersion("1.2.0.0")]
+[assembly: AssemblyFileVersion("1.2.0.0")]
 
 static class Arca
 {
@@ -67,8 +67,8 @@ static class Arca
 
             Ini.Default("arca", "language", "auto");
             Ini.Default("arca", "updates", "1");
-            modules = new List<Module> { new ThemeModule(), new BinModule(), new WindowsModule() };
-            foreach (var m in modules) Ini.Default("arca", m.Id, "1");
+            modules = new List<Module> { new ThemeModule(), new BinModule(), new WindowsModule(), new TaskbarModule() };
+            foreach (var m in modules) Ini.Default("arca", m.Id, m.DefaultOn ? "1" : "0");
             Ini.Reload();
             L.Load();
 

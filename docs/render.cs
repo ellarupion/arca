@@ -186,8 +186,8 @@ static class R
                 g.DrawString(ru ? "Ларец маленьких утилит для Windows" : "A box of tiny Windows tools", f, b, tx, 268);
 
             string[] tags = ru
-                ? new[] { "тема", "корзина", "окна", "≈110 КБ", "без установки" }
-                : new[] { "theme", "recycle bin", "windows", "≈110 KB", "no installer" };
+                ? new[] { "тема", "корзина", "окна", "≈130 КБ", "без установки" }
+                : new[] { "theme", "recycle bin", "windows", "≈130 KB", "no installer" };
             float cx = tx;
             using (var f = new Font("Segoe UI Semibold", 24f, GraphicsUnit.Pixel))
                 foreach (var t in tags)

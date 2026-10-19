@@ -1,4 +1,4 @@
-// The arca window: a sidebar, the tool catalog, a page per tool with its settings, app settings and about.
+// The arca window: pages for the tool catalog, each tool, settings and about, switched from a floating glass dock.
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -9,28 +9,35 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 
 class MainWindow : Window
 {
-    enum Page { Tools, Tool, Settings, About }
+    enum Page { Home, Tool, Settings, About }
 
     const string RepoUrl = "https://github.com/" + Updater.Repo;
+    const double DockRadius = 26, FrostPad = 30;
 
     readonly Grid root = new Grid();
     readonly ScrollViewer scroller;
     readonly StackPanel content = new StackPanel();
     UniformGrid cards;
-    Page page = Page.Tools;
+    Page page = Page.Home;
     Module tool;
     bool quitting;
+
+    // The dock's frosted glass: a blurred live copy of the page behind it.
+    Grid frostHolder;
+    VisualBrush frostBrush;
+    Rect frostView;
 
     public MainWindow()
     {
         Title = "arca";
-        Width = 1040;
-        Height = 720;
-        MinWidth = 760;
+        Width = 1000;
+        Height = 740;
+        MinWidth = 640;
         MinHeight = 520;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         FontFamily = (FontFamily)FindResource("Ui");
@@ -40,9 +47,9 @@ class MainWindow : Window
         SetResourceReference(BackgroundProperty, "Bg");
         SetResourceReference(ForegroundProperty, "Text");
 
-        root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(256) });
-        root.ColumnDefinitions.Add(new ColumnDefinition());
-        content.Margin = new Thickness(40, 32, 40, 40);
+        root.SetResourceReference(Panel.BackgroundProperty, "Layer");
+        content.Margin = new Thickness(48, 36, 48, 140); // room to scroll the last card above the dock
+        content.MaxWidth = 980;
         scroller = new ScrollViewer
         {
             Content = content,
@@ -51,6 +58,7 @@ class MainWindow : Window
             FocusVisualStyle = null,
         };
         scroller.SizeChanged += (s, e) => { if (cards != null) cards.Columns = Columns(); };
+        scroller.ScrollChanged += delegate { UpdateFrost(); };
         Content = root;
 
         SourceInitialized += delegate { ApplyChrome(); };
@@ -115,94 +123,147 @@ class MainWindow : Window
 
     void Render()
     {
-        root.Children.Clear();
-        root.Children.Add(Sidebar());
-
         content.Children.Clear();
         cards = null;
         if (page == Page.Tool && tool != null) ToolPage(tool);
         else if (page == Page.Settings) SettingsPage();
         else if (page == Page.About) AboutPage();
-        else ToolsPage();
+        else HomePage();
 
-        var host = scroller.Parent as Border;
-        if (host != null) host.Child = null;
-        var layer = new Border { CornerRadius = new CornerRadius(8, 0, 0, 0), BorderThickness = new Thickness(1, 1, 0, 0), Child = scroller };
-        layer.SetResourceReference(Border.BackgroundProperty, "Layer");
-        layer.SetResourceReference(Border.BorderBrushProperty, "LayerStroke");
-        Grid.SetColumn(layer, 1);
-        root.Children.Add(layer);
+        root.Children.Clear();
+        root.Children.Add(scroller);
+        root.Children.Add(DockBar());
     }
 
-    // ---- sidebar
+    // ---- dock
 
-    UIElement Sidebar()
+    UIElement DockBar()
     {
-        var dock = new DockPanel { Margin = new Thickness(12, 14, 12, 14), LastChildFill = true };
-
-        var brand = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(6, 2, 0, 20) };
-        brand.Children.Add(Tile("", 34, 17));
-        var name = Text("arca", 20, "Text", FontWeights.SemiBold);
-        name.FontFamily = (FontFamily)FindResource("Display");
-        name.Margin = new Thickness(12, 0, 0, 2);
-        name.VerticalAlignment = VerticalAlignment.Center;
-        brand.Children.Add(name);
-        DockPanel.SetDock(brand, Dock.Top);
-        dock.Children.Add(brand);
-
-        var footer = new StackPanel { Margin = new Thickness(4, 0, 4, 0) };
-        if (Updater.Available != null)
+        var items = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(12, 9, 12, 7) };
+        items.Children.Add(DockItem("", "arca", page == Page.Home, true, false, delegate { Go(Page.Home, null); }));
+        items.Children.Add(DockSeparator());
+        foreach (var m in Arca.Modules)
         {
-            var box = new StackPanel();
-            box.Children.Add(Text(L.T("Update available"), 13, "Text", FontWeights.SemiBold));
-            var v = Text("v" + Updater.Available, 12, "Text2");
-            v.Margin = new Thickness(0, 2, 0, 10);
-            box.Children.Add(v);
-            box.Children.Add(Button(L.T("Update now"), true, delegate { Updater.Install(); }));
-            footer.Children.Add(CardBorder(box, new Thickness(14)));
+            var mod = m;
+            string label = m.Running ? m.Title : m.Title + " · " + L.T("Off");
+            items.Children.Add(DockItem(m.Glyph, label, page == Page.Tool && tool == m, m.Running, false, delegate { Go(Page.Tool, mod); }));
         }
-        else
-        {
-            var v = Text("arca v" + Updater.CurrentText, 12, "Text3");
-            v.Margin = new Thickness(10, 0, 0, 4);
-            footer.Children.Add(v);
-        }
-        DockPanel.SetDock(footer, Dock.Bottom);
-        dock.Children.Add(footer);
+        items.Children.Add(DockSeparator());
+        items.Children.Add(DockItem("", L.T("Settings"), page == Page.Settings, true, Updater.Available != null, delegate { Go(Page.Settings, null); }));
+        items.Children.Add(DockItem("", L.T("About"), page == Page.About, true, false, delegate { Go(Page.About, null); }));
 
-        var nav = new StackPanel();
-        nav.Children.Add(Nav("", L.T("Tools"), page == Page.Tools || page == Page.Tool, delegate { Go(Page.Tools, null); }));
-        nav.Children.Add(Nav("", L.T("Settings"), page == Page.Settings, delegate { Go(Page.Settings, null); }));
-        nav.Children.Add(Nav("", L.T("About"), page == Page.About, delegate { Go(Page.About, null); }));
-        dock.Children.Add(nav);
-        return dock;
+        var radius = new CornerRadius(DockRadius);
+        var glass = new Grid { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 0, 22) };
+
+        // Soft shadow under the dock.
+        var shadow = new Border { CornerRadius = radius, Margin = new Thickness(10, 16, 10, -8), Effect = new BlurEffect { Radius = 28 } };
+        shadow.SetResourceReference(Border.BackgroundProperty, "GlassEdge");
+        glass.Children.Add(shadow);
+
+        // Frost: the page behind the dock, blurred, clipped to the dock's shape.
+        frostBrush = new VisualBrush(scroller) { ViewboxUnits = BrushMappingMode.Absolute, Stretch = Stretch.Fill };
+        var frost = new Rectangle { Fill = frostBrush, Margin = new Thickness(-FrostPad), Effect = new BlurEffect { Radius = 22, RenderingBias = RenderingBias.Performance } };
+        frostHolder = new Grid();
+        frostHolder.Children.Add(frost);
+        frostHolder.SizeChanged += (s, e) =>
+        {
+            frostHolder.Clip = new RectangleGeometry(new Rect(e.NewSize), DockRadius, DockRadius);
+            UpdateFrost();
+        };
+        frostHolder.LayoutUpdated += delegate { UpdateFrost(); };
+        frostView = Rect.Empty;
+        glass.Children.Add(frostHolder);
+
+        // Tint, sheen across the top, a dark hairline outside and a light edge inside.
+        foreach (var key in new[] { "Glass", "GlassSheen" })
+        {
+            var layer = new Border { CornerRadius = radius };
+            layer.SetResourceReference(Border.BackgroundProperty, key);
+            glass.Children.Add(layer);
+        }
+        var edge = new Border { CornerRadius = radius, BorderThickness = new Thickness(1) };
+        edge.SetResourceReference(Border.BorderBrushProperty, "GlassEdge");
+        glass.Children.Add(edge);
+        var shine = new Border { CornerRadius = new CornerRadius(DockRadius - 1), BorderThickness = new Thickness(1.2), Margin = new Thickness(1) };
+        shine.SetResourceReference(Border.BorderBrushProperty, "GlassStroke");
+        glass.Children.Add(shine);
+
+        glass.Children.Add(items);
+        return glass;
     }
 
-    RadioButton Nav(string glyph, string text, bool selected, Action click)
+    // Keep the blurred copy lined up with whatever is behind the dock right now.
+    void UpdateFrost()
     {
-        var row = new StackPanel { Orientation = Orientation.Horizontal };
-        var icon = Glyph(glyph, 16, "Text");
+        if (frostHolder == null || frostBrush == null || !frostHolder.IsVisible || PresentationSource.FromVisual(frostHolder) == null) return;
+        Point p;
+        try { p = frostHolder.TranslatePoint(new Point(0, 0), scroller); }
+        catch (InvalidOperationException) { return; }
+        var view = new Rect(p.X - FrostPad, p.Y - FrostPad, frostHolder.ActualWidth + 2 * FrostPad, frostHolder.ActualHeight + 2 * FrostPad);
+        if (view == frostView) return;
+        frostView = view;
+        frostBrush.Viewbox = view;
+    }
+
+    Button DockItem(string glyph, string label, bool active, bool on, bool badge, Action click)
+    {
+        var icon = Glyph(glyph, 22, active ? "Accent" : on ? "Text" : "Text3");
+        icon.HorizontalAlignment = HorizontalAlignment.Center;
         icon.VerticalAlignment = VerticalAlignment.Center;
-        row.Children.Add(icon);
-        var label = Text(text, 14, "Text");
-        label.Margin = new Thickness(14, 0, 0, 1);
-        label.VerticalAlignment = VerticalAlignment.Center;
-        row.Children.Add(label);
-        var r = new RadioButton { Style = S("Nav"), Content = row, GroupName = "nav", IsChecked = selected };
-        AutomationProperties.SetName(r, text);
-        // Checked covers mouse, keyboard and accessibility tools; Click covers clicking the page you're already in.
-        bool handled = false;
-        r.Checked += delegate { handled = true; click(); };
-        r.Click += delegate { if (!handled) click(); handled = false; };
-        return r;
+        var tile = new Grid { Width = 50, Height = 50 };
+        var back = new Border { CornerRadius = new CornerRadius(15) };
+        back.SetResourceReference(Border.BackgroundProperty, active ? "AccentSoft" : "Ctrl");
+        tile.Children.Add(back);
+        tile.Children.Add(icon);
+        if (badge)
+        {
+            var dot = new Ellipse { Width = 10, Height = 10, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 3, 3, 0) };
+            dot.SetResourceReference(Shape.FillProperty, "Accent");
+            tile.Children.Add(dot);
+        }
+        var stack = new StackPanel();
+        stack.Children.Add(tile);
+        var marker = new Ellipse { Width = 4, Height = 4, Margin = new Thickness(0, 4, 0, 0), Fill = Brushes.Transparent }; // the open page gets a dot
+        if (active) marker.SetResourceReference(Shape.FillProperty, "Text");
+        stack.Children.Add(marker);
+
+        var b = new Button { Style = S("DockItem"), Content = stack, ToolTip = label };
+        ToolTipService.SetPlacement(b, PlacementMode.Top);
+        ToolTipService.SetInitialShowDelay(b, 150);
+        AutomationProperties.SetName(b, label);
+        b.Click += delegate { click(); };
+        return b;
+    }
+
+    UIElement DockSeparator()
+    {
+        var line = new Border { Width = 1, Height = 34, Margin = new Thickness(9, 0, 9, 8), Opacity = 0.35 };
+        line.SetResourceReference(Border.BackgroundProperty, "Text3");
+        return line;
     }
 
     // ---- pages
 
-    void ToolsPage()
+    void HomePage()
     {
         Header(L.T("Tools"), L.T("Turn on what you need. Each tool lives in the tray next to the clock."));
-        cards = new UniformGrid { Columns = Columns(), Margin = new Thickness(-6, 0, -6, 0) };
+
+        if (Updater.Available != null)
+        {
+            var bar = new DockPanel();
+            var update = Button(L.T("Update now"), true, delegate { Updater.Install(); });
+            DockPanel.SetDock(update, Dock.Right);
+            bar.Children.Add(update);
+            var t = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            t.Children.Add(Text(L.T("Update available"), 15, "Text", FontWeights.SemiBold));
+            t.Children.Add(Text(L.F("Version {0} is available", Updater.Available), 13, "Text2"));
+            bar.Children.Add(t);
+            var card = CardBorder(bar, new Thickness(22, 16, 16, 16));
+            card.Margin = new Thickness(0, 0, 0, 16);
+            content.Children.Add(card);
+        }
+
+        cards = new UniformGrid { Columns = Columns(), Margin = new Thickness(-7, 0, -7, 0) };
         foreach (var m in Arca.Modules) cards.Children.Add(ToolCard(m));
         content.Children.Add(cards);
 
@@ -212,15 +273,15 @@ class MainWindow : Window
         i.VerticalAlignment = VerticalAlignment.Top;
         note.Children.Add(i);
         note.Children.Add(Wrap(L.T("Closing this window keeps arca running in the tray. To quit, use Exit in the tray menu or Quit in Settings."), 13, "Text2"));
-        var card = CardBorder(note, new Thickness(16, 14, 16, 14));
-        card.Margin = new Thickness(0, 18, 0, 0);
-        content.Children.Add(card);
+        var noteCard = CardBorder(note, new Thickness(20, 16, 20, 16));
+        noteCard.Margin = new Thickness(0, 12, 0, 0);
+        content.Children.Add(noteCard);
     }
 
     int Columns()
     {
-        double w = scroller.ActualWidth - 80;
-        return w >= 860 ? 3 : w >= 500 ? 2 : 1;
+        double w = scroller.ActualWidth - 96;
+        return w >= 1100 ? 4 : w >= 540 ? 2 : 1;
     }
 
     UIElement ToolCard(Module m)
@@ -235,13 +296,13 @@ class MainWindow : Window
         DockPanel.SetDock(toggle, Dock.Right);
         toggle.VerticalAlignment = VerticalAlignment.Top;
         top.Children.Add(toggle);
-        var tile = Tile(m.Glyph, 48, 22);
+        var tile = Tile(m.Glyph, 52, 24);
         tile.HorizontalAlignment = HorizontalAlignment.Left;
         top.Children.Add(tile);
         g.Children.Add(top);
 
-        var title = Text(m.Title, 16, "Text", FontWeights.SemiBold);
-        title.Margin = new Thickness(0, 16, 0, 0);
+        var title = Text(m.Title, 17, "Text", FontWeights.SemiBold);
+        title.Margin = new Thickness(0, 18, 0, 0);
         Grid.SetRow(title, 1);
         g.Children.Add(title);
 
@@ -263,7 +324,7 @@ class MainWindow : Window
         Grid.SetRow(foot, 3);
         g.Children.Add(foot);
 
-        var card = new Button { Style = S("CardButton"), Content = g, Margin = new Thickness(6, 0, 6, 12) };
+        var card = new Button { Style = S("CardButton"), Content = g, Margin = new Thickness(7, 0, 7, 14) };
         AutomationProperties.SetName(card, m.Title);
         card.Click += delegate { Go(Page.Tool, m); };
         return card;
@@ -271,16 +332,16 @@ class MainWindow : Window
 
     void ToolPage(Module m)
     {
-        var crumb = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 20) };
-        var back = new Button { Style = S("Ghost"), Content = Display(L.T("Tools"), null) };
-        back.Click += delegate { Go(Page.Tools, null); };
-        crumb.Children.Add(back);
-        var sep = Glyph("", 14, "Text3");
-        sep.Margin = new Thickness(14, 6, 14, 0);
-        sep.VerticalAlignment = VerticalAlignment.Center;
-        crumb.Children.Add(sep);
-        crumb.Children.Add(Display(m.Title, "Text"));
-        content.Children.Add(crumb);
+        var head = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 22) };
+        var back = new Button { Style = S("Circle"), Content = Glyph("", 14, "Text") };
+        AutomationProperties.SetName(back, L.T("Tools"));
+        back.Click += delegate { Go(Page.Home, null); };
+        head.Children.Add(back);
+        var title = Display(m.Title, "Text");
+        title.Margin = new Thickness(16, 0, 0, 2);
+        title.VerticalAlignment = VerticalAlignment.Center;
+        head.Children.Add(title);
+        content.Children.Add(head);
 
         var hero = new DockPanel();
         var right = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(24, 0, 0, 0) };
@@ -291,13 +352,13 @@ class MainWindow : Window
         right.Children.Add(Toggle(m.Running, on => Arca.SetEnabled(m, on)));
         DockPanel.SetDock(right, Dock.Right);
         hero.Children.Add(right);
-        var tile = Tile(m.Glyph, 56, 26);
+        var tile = Tile(m.Glyph, 60, 28);
         tile.Margin = new Thickness(0, 0, 20, 0);
         hero.Children.Add(tile);
         var desc = Wrap(m.Description, 14, "Text2");
         desc.VerticalAlignment = VerticalAlignment.Center;
         hero.Children.Add(desc);
-        content.Children.Add(CardBorder(hero, new Thickness(20)));
+        content.Children.Add(CardBorder(hero, new Thickness(22)));
 
         if (m.Settings.Count > 0)
         {
@@ -311,7 +372,7 @@ class MainWindow : Window
             var list = new StackPanel();
             foreach (var line in m.Usage)
             {
-                var item = new DockPanel { Margin = new Thickness(0, 3, 0, 3) };
+                var item = new DockPanel { Margin = new Thickness(0, 4, 0, 4) };
                 var bullet = Glyph("", 12, "Accent");
                 bullet.Margin = new Thickness(0, 4, 12, 0);
                 bullet.VerticalAlignment = VerticalAlignment.Top;
@@ -319,7 +380,7 @@ class MainWindow : Window
                 item.Children.Add(Wrap(line, 14, "Text"));
                 list.Children.Add(item);
             }
-            content.Children.Add(CardBorder(list, new Thickness(20, 14, 20, 14)));
+            content.Children.Add(CardBorder(list, new Thickness(22, 16, 22, 16)));
         }
     }
 
@@ -328,18 +389,8 @@ class MainWindow : Window
         Header(L.T("Settings"), null);
 
         Section(L.T("General"));
-        var lang = new StackPanel { Orientation = Orientation.Horizontal };
-        foreach (var o in new[] { new[] { "auto", L.T("Same as Windows") }, new[] { "en", "English" }, new[] { "ru", "Русский" } })
-        {
-            string value = o[0];
-            var r = new RadioButton { Style = S("Segment"), Content = o[1], GroupName = "lang", IsChecked = Arca.Language == value };
-            r.Checked += delegate { Arca.SetLanguage(value); };
-            lang.Children.Add(r);
-        }
-        var langBox = new Border { CornerRadius = new CornerRadius(6), BorderThickness = new Thickness(1), Padding = new Thickness(1), Child = lang };
-        langBox.SetResourceReference(Border.BackgroundProperty, "Ctrl");
-        langBox.SetResourceReference(Border.BorderBrushProperty, "CtrlStroke");
-        content.Children.Add(Row(L.T("Language"), L.T("arca follows the Windows language unless you pick one"), langBox));
+        content.Children.Add(Row(L.T("Language"), L.T("arca follows the Windows language unless you pick one"),
+            Segments("lang", new[] { "auto", "en", "ru" }, new[] { L.T("Same as Windows"), "English", "Русский" }, Arca.Language, Arca.SetLanguage)));
         content.Children.Add(Row(L.T("Start with Windows"), L.T("arca starts quietly in the tray"),
             Toggle(Shell.InStartup(), on => { Shell.SetStartup(on); Render(); })));
 
@@ -374,9 +425,9 @@ class MainWindow : Window
     void AboutPage()
     {
         var head = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 24) };
-        head.Children.Add(new Image { Source = Ui.AppIcon(256), Width = 96, Height = 96 });
+        head.Children.Add(new Image { Source = Ui.AppIcon(256), Width = 104, Height = 104 });
         var titles = new StackPanel { Margin = new Thickness(24, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
-        var name = Text("arca", 40, "Text", FontWeights.SemiBold);
+        var name = Text("arca", 42, "Text", FontWeights.SemiBold);
         name.FontFamily = (FontFamily)FindResource("Display");
         titles.Children.Add(name);
         titles.Children.Add(Text(L.T("A box of tiny Windows tools"), 16, "Text2"));
@@ -406,22 +457,44 @@ class MainWindow : Window
 
     FrameworkElement Control(Module m, Setting s)
     {
+        Action<string> save = value => { Ini.Set(m.Id, s.Key, value); Arca.SettingChanged(m); };
         switch (s.Kind)
         {
             case SettingKind.Bool:
                 return Toggle(Ini.GetBool(m.Id, s.Key), on => { Ini.SetBool(m.Id, s.Key, on); Arca.SettingChanged(m); });
             case SettingKind.Time:
-                return Field(Ini.Get(m.Id, s.Key), 96, ParseTime, value => { Ini.Set(m.Id, s.Key, value); Arca.SettingChanged(m); });
+                return Field(Ini.Get(m.Id, s.Key), 96, ParseTime, save);
             case SettingKind.Number:
                 return Field(Ini.Get(m.Id, s.Key), 96, text =>
                 {
                     double d;
                     if (!double.TryParse(text.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out d) || d < 0) return null;
                     return d.ToString("0.##", CultureInfo.InvariantCulture);
-                }, value => { Ini.Set(m.Id, s.Key, value); Arca.SettingChanged(m); });
+                }, save);
+            case SettingKind.Choice:
+                var labels = new string[s.Labels.Length];
+                for (int i = 0; i < labels.Length; i++) labels[i] = L.T(s.Labels[i]);
+                return Segments(m.Id + "." + s.Key, s.Values, labels, Ini.Get(m.Id, s.Key).Trim().ToLowerInvariant(), save);
             default:
-                return HotkeyBox(Ini.Get(m.Id, s.Key), value => { Ini.Set(m.Id, s.Key, value); Arca.SettingChanged(m); });
+                return HotkeyBox(Ini.Get(m.Id, s.Key), save);
         }
+    }
+
+    // A row of pill options; picking one calls pick with its value.
+    FrameworkElement Segments(string group, string[] values, string[] labels, string current, Action<string> pick)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal };
+        for (int i = 0; i < values.Length; i++)
+        {
+            string value = values[i];
+            var r = new RadioButton { Style = S("Segment"), Content = labels[i], GroupName = group, IsChecked = current == value };
+            r.Checked += delegate { pick(value); };
+            row.Children.Add(r);
+        }
+        var box = new Border { CornerRadius = new CornerRadius(17), BorderThickness = new Thickness(1), Padding = new Thickness(1), Child = row };
+        box.SetResourceReference(Border.BackgroundProperty, "Ctrl");
+        box.SetResourceReference(Border.BorderBrushProperty, "CardStroke");
+        return box;
     }
 
     // "7:30", "7.30", "730", "0730" and "7" all mean 07:30 or 07:00, so the colon (Shift+6 on a Russian keyboard) is optional.
@@ -445,7 +518,7 @@ class MainWindow : Window
     // A text field that saves on Enter or when it loses focus; parse returns null for invalid input.
     TextBox Field(string value, double width, Func<string, string> parse, Action<string> save)
     {
-        var box = new TextBox { Style = S("Field"), Text = value, Width = width, Height = 32, TextAlignment = TextAlignment.Center };
+        var box = new TextBox { Style = S("Field"), Text = value, Width = width, Height = 34, TextAlignment = TextAlignment.Center };
         string saved = value;
         Action commit = delegate
         {
@@ -455,7 +528,7 @@ class MainWindow : Window
                 box.SetResourceReference(TextBox.BorderBrushProperty, "Danger");
                 return;
             }
-            box.SetResourceReference(TextBox.BorderBrushProperty, "CtrlStroke");
+            box.SetResourceReference(TextBox.BorderBrushProperty, "CardStroke");
             box.Text = v;
             if (v != saved) { saved = v; save(v); }
         };
@@ -481,7 +554,7 @@ class MainWindow : Window
         {
             Style = S("Field"),
             Width = 220,
-            Height = 32,
+            Height = 34,
             IsReadOnly = true,
             IsReadOnlyCaretVisible = false,
             Cursor = Cursors.Hand,
@@ -571,15 +644,15 @@ class MainWindow : Window
 
     TextBlock Display(string text, string brush)
     {
-        var t = new TextBlock { Text = text, FontSize = 28, FontWeight = FontWeights.SemiBold, FontFamily = (FontFamily)FindResource("Display") };
+        var t = new TextBlock { Text = text, FontSize = 32, FontWeight = FontWeights.SemiBold, FontFamily = (FontFamily)FindResource("Display") };
         if (brush != null) t.SetResourceReference(TextBlock.ForegroundProperty, brush);
         return t;
     }
 
     void Section(string text)
     {
-        var t = Text(text, 14, "Text", FontWeights.SemiBold);
-        t.Margin = new Thickness(2, 28, 0, 8);
+        var t = Text(text, 14, "Text2", FontWeights.SemiBold);
+        t.Margin = new Thickness(6, 28, 0, 10);
         content.Children.Add(t);
     }
 
@@ -596,19 +669,19 @@ class MainWindow : Window
         if (!string.IsNullOrEmpty(hint))
         {
             var h = Wrap(hint, 12, "Text2");
-            h.Margin = new Thickness(0, 2, 0, 0);
+            h.Margin = new Thickness(0, 3, 0, 0);
             text.Children.Add(h);
         }
         dock.Children.Add(text);
-        var card = CardBorder(dock, new Thickness(18, 14, 18, 14));
-        card.MinHeight = 66;
-        card.Margin = new Thickness(0, 0, 0, 4);
+        var card = CardBorder(dock, new Thickness(22, 14, 18, 14));
+        card.MinHeight = 70;
+        card.Margin = new Thickness(0, 0, 0, 8);
         return card;
     }
 
     Border CardBorder(UIElement child, Thickness padding)
     {
-        var b = new Border { CornerRadius = new CornerRadius(8), BorderThickness = new Thickness(1), Padding = padding, Child = child };
+        var b = new Border { CornerRadius = new CornerRadius(18), BorderThickness = new Thickness(1), Padding = padding, Child = child };
         b.SetResourceReference(Border.BackgroundProperty, "Card");
         b.SetResourceReference(Border.BorderBrushProperty, "CardStroke");
         return b;
@@ -619,7 +692,7 @@ class MainWindow : Window
         var g = Glyph(glyph, glyphSize, "Accent");
         g.HorizontalAlignment = HorizontalAlignment.Center;
         g.VerticalAlignment = VerticalAlignment.Center;
-        var b = new Border { Width = size, Height = size, CornerRadius = new CornerRadius(size / 4.5), Child = g };
+        var b = new Border { Width = size, Height = size, CornerRadius = new CornerRadius(size * 0.3), Child = g };
         b.SetResourceReference(Border.BackgroundProperty, "AccentSoft");
         return b;
     }
@@ -650,9 +723,9 @@ class MainWindow : Window
         return t;
     }
 
+    // Checked/Unchecked rather than Click, so keyboard and accessibility tools work too.
     CheckBox Toggle(bool on, Action<bool> changed)
     {
-        // Checked/Unchecked rather than Click, so keyboard and accessibility tools work too.
         var c = new CheckBox { Style = S("Toggle"), IsChecked = on };
         c.Checked += delegate { changed(true); };
         c.Unchecked += delegate { changed(false); };

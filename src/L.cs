@@ -106,6 +106,27 @@ static class L
         { "Recycle Bin — {0}, {1}", "Корзина — {0}, {1}" },
 
         // windows
+        // taskbar
+        { "Taskbar", "Панель задач" },
+        { "Close apps with a middle click on the taskbar, and change the volume by scrolling over it.",
+          "Закрывайте программы щелчком колёсика по панели задач и меняйте громкость, прокручивая колесо над ней." },
+        { "Middle click closes the app", "Щелчок колёсиком закрывает программу" },
+        { "Click a taskbar button with the mouse wheel to close that app", "Нажмите колёсиком на кнопку программы на панели задач, чтобы закрыть её" },
+        { "Close all of its windows", "Закрывать все её окна" },
+        { "When off, apps with several windows keep the usual middle click", "Если выключить, у программ с несколькими окнами щелчок колёсиком работает как обычно" },
+        { "Scroll over the taskbar to change volume", "Громкость колесом над панелью задач" },
+        { "Shows the usual Windows volume indicator", "Показывается обычный индикатор громкости Windows" },
+        { "Scroll anywhere while holding", "Громкость колесом везде, если зажата" },
+        { "Change the volume over any window while this key is held", "Колесо меняет громкость над любым окном, пока зажата эта клавиша" },
+        { "Volume step", "Шаг громкости" },
+        { "Each wheel notch changes the volume by 2% times this", "Один щелчок колеса меняет громкость на 2%, умноженные на это число" },
+        { "Middle-click a taskbar button to close the app, the same as clicking its × button.",
+          "Щелчок колёсиком по кнопке на панели задач закрывает программу, как кнопка ×." },
+        { "Scroll the mouse wheel anywhere over the taskbar to turn the volume up or down.",
+          "Прокрутите колесо над любым местом панели задач, чтобы сделать громче или тише." },
+        { "If you use Windhawk mods that do the same, turn them off to avoid surprises.",
+          "Если у вас стоят моды Windhawk с тем же действием, выключите их, чтобы они не мешали." },
+
         { "Window tools", "Работа с окнами" },
         { "Keep any window on top, hide it to the tray, make it see-through, or move it by grabbing anywhere.",
           "Закрепить любое окно поверх остальных, спрятать его в трей, сделать прозрачным или двигать, взявшись за любое место." },

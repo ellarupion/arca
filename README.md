@@ -16,7 +16,7 @@
 ---
 
 *arca* is Latin for "chest". It's a small Windows app that collects a few handy tools in one place:
-a light/dark theme switch, the Recycle Bin next to the clock, and shortcuts for working with windows.
+a light/dark theme switch, the Recycle Bin next to the clock, shortcuts for working with windows, and taskbar tweaks.
 Open arca, turn on what you need, set it up, and close it. The tools keep running in the tray.
 
 <p align="center">
@@ -26,9 +26,9 @@ Open arca, turn on what you need, set it up, and close it. The tools keep runnin
   </picture>
 </p>
 
-- **One place for everything.** Every tool has its own page with a description, an on/off switch and its settings.
-- **Looks like Windows 11.** Mica background, your accent colour, light and dark theme, following the system.
-- **Tiny.** One ~110 KB exe, nothing to install, no background services.
+- **One place for everything.** A glass dock at the bottom switches between tools; every tool has its own page with a description, an on/off switch and its settings.
+- **Glass look.** A see-through window, a floating frosted dock that magnifies icons under the mouse, your accent colour, light and dark theme.
+- **Tiny.** One ~130 KB exe, nothing to install, no background services.
 - **Updates itself** from GitHub Releases.
 - **English and Russian**, following your Windows language.
 
@@ -75,6 +75,21 @@ When arca exits, every window goes back to normal.
   </picture>
 </p>
 
+### Taskbar
+
+- **Middle click closes the app.** Click a taskbar button with the mouse wheel and that app closes, the same as clicking its ×.
+- **Scroll over the taskbar to change volume**, with the usual Windows volume indicator. Optionally anywhere, while holding Ctrl, Alt, Shift or Win.
+
+This one is off until you turn it on, because it changes how the taskbar reacts. If you use Windhawk mods that do the same,
+turn them off. Windows 11 only.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/window-taskbar-en-dark.png">
+    <img src="docs/window-taskbar-en-light.png" width="820" alt="Taskbar settings">
+  </picture>
+</p>
+
 ### Light/dark theme
 
 Click the ◐ icon next to the clock to switch the Windows theme, or let arca switch it on a schedule
@@ -98,6 +113,7 @@ updates=1
 theme=1              ; which tools are on
 bin=1
 windows=1
+taskbar=0
 
 [theme]
 light=07:00
@@ -116,6 +132,13 @@ hide=Ctrl+Win+H
 fade=Ctrl+Win+PageDown
 unfade=Ctrl+Win+PageUp
 alt_drag=0
+
+[taskbar]
+middle_close=1
+close_all=1
+volume=1
+volume_anywhere=off  ; off, ctrl, alt, shift or win
+volume_step=1        ; each wheel notch = 2% x this
 ```
 
 ## Good to know

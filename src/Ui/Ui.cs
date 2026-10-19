@@ -44,47 +44,61 @@ static class Ui
         Set("AccentSoft", Color.FromArgb(0x30, accent.R, accent.G, accent.B));
         Set("AccentFg", Dark ? Colors.Black : Colors.White);
 
+        // Glass: a translucent fill, a bright sheen across the top and a light edge that fades down the sides.
         if (Dark)
         {
-            Set("Bg", Mica ? "#00000000" : "#FF202020");
-            Set("Layer", Mica ? "#4D3A3A3A" : "#FF272727");
-            Set("LayerStroke", "#14FFFFFF");
-            Set("Card", "#0DFFFFFF");
-            Set("CardHover", "#15FFFFFF");
-            Set("CardStroke", "#12FFFFFF");
+            Set("Bg", Mica ? "#00000000" : "#FF1C1C21");
+            Set("Layer", Mica ? "#8C17171C" : "#FF1C1C21");
+            Set("Card", "#12FFFFFF");
+            Set("CardHover", "#1CFFFFFF");
+            Gradient("CardStroke", "#2EFFFFFF", "#0AFFFFFF", "#14FFFFFF");
             Set("Text", "#FFFFFFFF");
-            Set("Text2", "#C8FFFFFF");
-            Set("Text3", "#8AFFFFFF");
-            Set("Ctrl", "#0FFFFFFF");
-            Set("CtrlHover", "#18FFFFFF");
-            Set("CtrlStroke", "#14FFFFFF");
-            Set("ToggleOffStroke", "#9AFFFFFF");
-            Set("NavHover", "#0FFFFFFF");
-            Set("NavSel", "#14FFFFFF");
+            Set("Text2", "#B8FFFFFF");
+            Set("Text3", "#80FFFFFF");
+            Set("Ctrl", "#14FFFFFF");
+            Set("CtrlHover", "#22FFFFFF");
+            Set("ToggleOff", "#33FFFFFF");
+            Set("Popup", "#F02A2A30");
+            Set("Glass", "#1FFFFFFF");
+            Gradient("GlassSheen", "#38FFFFFF", "#00FFFFFF", "#00FFFFFF");
+            Gradient("GlassStroke", "#80FFFFFF", "#14FFFFFF", "#40FFFFFF");
+            Set("GlassEdge", "#66000000");
             Set("Danger", "#FFFF99A4");
         }
         else
         {
-            Set("Bg", Mica ? "#00000000" : "#FFF3F3F3");
-            Set("Layer", Mica ? "#80FFFFFF" : "#FFF9F9F9");
-            Set("LayerStroke", "#0F000000");
+            Set("Bg", Mica ? "#00000000" : "#FFEFF0F4");
+            Set("Layer", Mica ? "#A6EFF0F4" : "#FFEFF0F4");
             Set("Card", "#B3FFFFFF");
-            Set("CardHover", "#F2FBFBFB");
-            Set("CardStroke", "#12000000");
-            Set("Text", "#E4000000");
-            Set("Text2", "#9E000000");
-            Set("Text3", "#72000000");
-            Set("Ctrl", "#B3FFFFFF");
-            Set("CtrlHover", "#E6F9F9F9");
-            Set("CtrlStroke", "#1F000000");
-            Set("ToggleOffStroke", "#72000000");
-            Set("NavHover", "#09000000");
-            Set("NavSel", "#0F000000");
+            Set("CardHover", "#E6FFFFFF");
+            Gradient("CardStroke", "#FFFFFFFF", "#33FFFFFF", "#26000000");
+            Set("Text", "#E6000000");
+            Set("Text2", "#99000000");
+            Set("Text3", "#6B000000");
+            Set("Ctrl", "#CCFFFFFF");
+            Set("CtrlHover", "#FFFFFFFF");
+            Set("ToggleOff", "#29000000");
+            Set("Popup", "#F7FFFFFF");
+            Set("Glass", "#66FFFFFF");
+            Gradient("GlassSheen", "#B3FFFFFF", "#00FFFFFF", "#00FFFFFF");
+            Gradient("GlassStroke", "#FFFFFFFF", "#59FFFFFF", "#CCFFFFFF");
+            Set("GlassEdge", "#24000000");
             Set("Danger", "#FFC42B1C");
         }
     }
 
-    // Dark title bar to match, and Mica behind the window where available.
+    // A top-to-bottom gradient through three colours.
+    static void Gradient(string key, string top, string middle, string bottom)
+    {
+        var b = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(0, 1) };
+        b.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString(top), 0));
+        b.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString(middle), 0.5));
+        b.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString(bottom), 1));
+        b.Freeze();
+        app.Resources[key] = b;
+    }
+
+    // Dark title bar to match, and a blurred see-through backdrop (acrylic) where available.
     public static void Chrome(Window w)
     {
         IntPtr h = new WindowInteropHelper(w).Handle;
@@ -96,8 +110,8 @@ static class Ui
         if (source != null) source.CompositionTarget.BackgroundColor = Colors.Transparent;
         var margins = new MARGINS { Left = -1, Right = -1, Top = -1, Bottom = -1 };
         DwmExtendFrameIntoClientArea(h, ref margins);
-        int mica = 2; // DWMSBT_MAINWINDOW
-        DwmSetWindowAttribute(h, 38, ref mica, 4); // DWMWA_SYSTEMBACKDROP_TYPE
+        int acrylic = 3; // DWMSBT_TRANSIENTWINDOW
+        DwmSetWindowAttribute(h, 38, ref acrylic, 4); // DWMWA_SYSTEMBACKDROP_TYPE
     }
 
     // The arca icon at the closest size to the one asked for.
