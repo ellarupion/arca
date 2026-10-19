@@ -1,2 +1,7 @@
 @echo off
-"%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:winexe /optimize+ /codepage:65001 /win32icon:"%~dp0arca.ico" /out:"%~dp0arca.exe" /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Core.dll "%~dp0src\*.cs"
+set NET=%WINDIR%\Microsoft.NET\Framework64\v4.0.30319
+"%NET%\csc.exe" /nologo /target:winexe /optimize+ /codepage:65001 /lib:"%NET%\WPF" ^
+  /win32icon:"%~dp0arca.ico" /resource:"%~dp0arca.ico",arca.ico /resource:"%~dp0src\Ui\Styles.xaml",Styles.xaml ^
+  /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Core.dll /r:System.Xaml.dll ^
+  /r:PresentationFramework.dll /r:PresentationCore.dll /r:WindowsBase.dll ^
+  /out:"%~dp0arca.exe" /recurse:"%~dp0src\*.cs"

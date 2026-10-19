@@ -1,5 +1,6 @@
 // Light/dark theme toggle with a daily schedule (formerly umbra).
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
@@ -9,6 +10,33 @@ class ThemeModule : Module
 {
     public override string Id { get { return "theme"; } }
     public override string Title { get { return L.T("Light/dark theme"); } }
+    public override string Description { get { return L.T("Switch Windows between light and dark with one click, or let it follow a daily schedule."); } }
+    public override string Glyph { get { return ""; } }
+
+    public override IList<Setting> Settings
+    {
+        get
+        {
+            return new[]
+            {
+                new Setting("auto", SettingKind.Bool, "Switch on a schedule", "A manual switch stays until the next scheduled one"),
+                new Setting("light", SettingKind.Time, "Light from", "Time of day, like 07:00"),
+                new Setting("dark", SettingKind.Time, "Dark from", "Time of day, like 19:00"),
+            };
+        }
+    }
+
+    public override IList<string> Usage
+    {
+        get
+        {
+            return new[]
+            {
+                L.T("Click the ◐ icon next to the clock to switch the theme."),
+                L.T("Right-click it to turn the schedule on or off."),
+            };
+        }
+    }
 
     NotifyIcon tray;
     TimeSpan lightAt, darkAt;

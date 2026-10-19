@@ -1,6 +1,6 @@
-// Renders README images from the real arca menus (loaded by reflection) plus a banner and a shortcut sheet.
+// Renders the README banner and shortcut sheet, using arca's own icon drawing and translations (loaded by reflection).
+// Window screenshots are taken from the running app.
 using System;
-using System.Collections;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
@@ -15,10 +15,8 @@ static class R
     [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
 
     const BindingFlags F = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance;
-    const float MenuFont = 18f;
     static Assembly A;
     static string Out;
-    static object theme, bin, win;
     static bool ru;
 
     static readonly Color Bg1 = Color.FromArgb(24, 24, 32), Bg2 = Color.FromArgb(44, 40, 62);
@@ -33,28 +31,11 @@ static class R
         Out = args[1];
         Directory.CreateDirectory(Out);
 
-        var list = (IList)Activator.CreateInstance(typeof(System.Collections.Generic.List<>).MakeGenericType(A.GetType("Module")));
-        theme = Activator.CreateInstance(A.GetType("ThemeModule"), true);
-        bin = Activator.CreateInstance(A.GetType("BinModule"), true);
-        win = Activator.CreateInstance(A.GetType("WindowsModule"), true);
-        foreach (var m in new[] { theme, bin, win })
-        {
-            list.Add(m);
-            A.GetType("Module").GetProperty("Running").GetSetMethod(true).Invoke(m, new object[] { true });
-        }
-        A.GetType("Arca").GetField("modules", F).SetValue(null, list);
-        theme.GetType().GetField("lightAt", F).SetValue(theme, new TimeSpan(7, 0, 0));
-        theme.GetType().GetField("darkAt", F).SetValue(theme, new TimeSpan(19, 0, 0));
-        theme.GetType().GetField("auto", F).SetValue(theme, true);
-
         foreach (var lang in new[] { "en", "ru" })
         {
             ru = lang == "ru";
             A.GetType("L").GetProperty("Ru").GetSetMethod(true).Invoke(null, new object[] { ru });
             Save(Banner(), "banner-" + lang);
-            Save(MainMenu(), "menu-" + lang);
-            Save(ModuleMenu(theme, 1), "theme-" + lang);
-            Save(ModuleMenu(bin, 2), "bin-" + lang);
             Save(Shortcuts(), "shortcuts-" + lang);
         }
     }
@@ -66,122 +47,6 @@ static class R
     }
 
     static string T(string en) { return (string)A.GetType("L").GetMethod("T").Invoke(null, new object[] { en }); }
-
-    // ---- menus
-
-    static ContextMenuStrip Build(object target, string method, bool isStatic)
-    {
-        var menu = new ContextMenuStrip();
-        var mi = (isStatic ? A.GetType("Arca") : target.GetType()).GetMethod(method, F);
-        mi.Invoke(isStatic ? null : target, new object[] { menu.Items });
-        Scale(menu.Items);
-        menu.ImageScalingSize = new Size(32, 32);
-        menu.Renderer = new CheckRenderer();
-        foreach (ToolStripItem i in menu.Items)
-        {
-            var item = i as ToolStripMenuItem;
-            if (item != null && item.DropDownItems.Count > 0) item.DropDown.Renderer = new CheckRenderer();
-        }
-        return menu;
-    }
-
-    // The stock check box is a 16px bitmap; draw a crisp check at the menu's 2x size instead.
-    class CheckRenderer : ToolStripProfessionalRenderer
-    {
-        protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e)
-        {
-            var r = e.ImageRectangle;
-            using (var f = new Font(IconFont(), 20f, GraphicsUnit.Pixel))
-            using (var fmt = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
-            {
-                e.Graphics.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-                e.Graphics.DrawString("", f, Brushes.Black, new RectangleF(r.X - 4, r.Y - 4, r.Width + 8, r.Height + 8), fmt);
-            }
-        }
-    }
-
-    static string IconFont()
-    {
-        foreach (var f in FontFamily.Families) if (f.Name == "Segoe Fluent Icons") return f.Name;
-        return "Segoe MDL2 Assets";
-    }
-
-    static void Scale(ToolStripItemCollection items)
-    {
-        foreach (ToolStripItem i in items)
-        {
-            i.Font = new Font("Segoe UI", MenuFont, i.Font.Style, GraphicsUnit.Pixel);
-            var mi = i as ToolStripMenuItem;
-            if (mi != null && mi.DropDownItems.Count > 0)
-            {
-                mi.DropDown.Font = new Font("Segoe UI", MenuFont, GraphicsUnit.Pixel);
-                Scale(mi.DropDownItems);
-            }
-        }
-    }
-
-    static Bitmap Snap(ToolStripDropDown dd)
-    {
-        dd.Font = new Font("Segoe UI", MenuFont, GraphicsUnit.Pixel);
-        dd.CreateControl();
-        dd.PerformLayout();
-        var size = dd.GetPreferredSize(Size.Empty);
-        dd.Size = size;
-        var bmp = new Bitmap(size.Width, size.Height);
-        dd.DrawToBitmap(bmp, new Rectangle(Point.Empty, size));
-        return bmp;
-    }
-
-    // Main menu with the window tools submenu opened next to it, above the tray.
-    static Bitmap MainMenu()
-    {
-        var menu = Build(null, "BuildMenu", true);
-        ToolStripMenuItem sub = null;
-        foreach (ToolStripItem i in menu.Items)
-            if (i is ToolStripMenuItem && ((ToolStripMenuItem)i).DropDownItems.Count > 0) { sub = (ToolStripMenuItem)i; break; }
-        var main = Snap(menu);
-        var side = Snap(sub.DropDown);
-        var hl = sub.Bounds;
-        using (var g = Graphics.FromImage(main))
-        using (var b = new SolidBrush(Color.FromArgb(70, 0, 120, 215)))
-            g.FillRectangle(b, hl.X + 2, hl.Y, hl.Width - 4, hl.Height);
-
-        int pad = 56, gap = 4;
-        int w = pad + main.Width + gap + side.Width + pad;
-        int h = pad + main.Height + 24 + 64 + pad;
-        var bmp = Canvas(w, h);
-        using (var g = Graphics.FromImage(bmp))
-        {
-            Hq(g);
-            int mx = pad, my = pad;
-            Card(g, main, mx, my);
-            Card(g, side, mx + main.Width + gap, my + hl.Y - 4);
-            Tray(g, mx + main.Width - TrayWidth(), my + main.Height + 24, 0);
-            main.Dispose(); side.Dispose();
-        }
-        return bmp;
-    }
-
-    static Bitmap ModuleMenu(object module, int trayIndex)
-    {
-        var menu = Build(module, "BuildMenu", false);
-        menu.Items[0].Enabled = true; // "Empty Recycle Bin" is greyed out when the real bin happens to be empty
-        var img = Snap(menu);
-        int pad = 56;
-        int w = pad + Math.Max(img.Width, TrayWidth()) + pad;
-        int h = pad + img.Height + 24 + 64 + pad;
-        var bmp = Canvas(w, h);
-        using (var g = Graphics.FromImage(bmp))
-        {
-            Hq(g);
-            int x = w - pad - TrayWidth() + 12 + trayIndex * 52 + 26 - img.Width / 2;
-            x = Math.Max(pad, Math.Min(x, w - pad - img.Width));
-            Card(g, img, x, pad);
-            Tray(g, w - pad - TrayWidth(), pad + img.Height + 24, trayIndex);
-        }
-        img.Dispose();
-        return bmp;
-    }
 
     // ---- drawing helpers
 
@@ -321,8 +186,8 @@ static class R
                 g.DrawString(ru ? "Ларец маленьких утилит для Windows" : "A box of tiny Windows tools", f, b, tx, 268);
 
             string[] tags = ru
-                ? new[] { "тема", "корзина", "окна", "≈50 КБ", "без установки" }
-                : new[] { "theme", "recycle bin", "windows", "≈50 KB", "no installer" };
+                ? new[] { "тема", "корзина", "окна", "≈110 КБ", "без установки" }
+                : new[] { "theme", "recycle bin", "windows", "≈110 KB", "no installer" };
             float cx = tx;
             using (var f = new Font("Segoe UI Semibold", 24f, GraphicsUnit.Pixel))
                 foreach (var t in tags)

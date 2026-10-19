@@ -142,10 +142,21 @@ static class Shell
             return k != null && k.GetValue("arca") != null;
     }
 
+    // arca 1.0 registered itself without --tray, which would now open the window at every sign-in.
+    public static void UpgradeStartup()
+    {
+        using (var k = Registry.CurrentUser.OpenSubKey(RunKey, true))
+        {
+            var v = k == null ? null : k.GetValue("arca") as string;
+            if (v != null && !v.Contains("--tray") && v.Trim('"', ' ').Equals(Application.ExecutablePath, StringComparison.OrdinalIgnoreCase))
+                k.SetValue("arca", "\"" + Application.ExecutablePath + "\" --tray");
+        }
+    }
+
     public static void SetStartup(bool on)
     {
         using (var k = Registry.CurrentUser.CreateSubKey(RunKey))
-            if (on) k.SetValue("arca", "\"" + Application.ExecutablePath + "\"");
+            if (on) k.SetValue("arca", "\"" + Application.ExecutablePath + "\" --tray");
             else k.DeleteValue("arca", false);
     }
 }

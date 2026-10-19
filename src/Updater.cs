@@ -13,7 +13,13 @@ static class Updater
     public const string Repo = "ellarupion/arca";
     static readonly string Exe = Application.ExecutablePath;
 
+    public enum State { Unknown, Checking, UpToDate, Available, Failed }
+
     public static string Available { get; private set; }
+    public static State Status { get; private set; }
+    public static string Error { get; private set; }
+    public static DateTime LastCheck { get; private set; }
+    public static event Action Changed;
     static string downloadUrl;
 
     public static Version Current { get { return Assembly.GetExecutingAssembly().GetName().Version; } }
@@ -30,8 +36,12 @@ static class Updater
         try { File.Delete(Exe + ".new"); } catch (Exception) { }
     }
 
+    // manual: also report "up to date" and errors as a notification.
     public static void Check(bool manual)
     {
+        if (Status == State.Checking) return;
+        Status = State.Checking;
+        Raise();
         var ui = SynchronizationContext.Current;
         ThreadPool.QueueUserWorkItem(delegate
         {
@@ -52,20 +62,37 @@ static class Updater
 
     static void Done(string tag, string url, string error, bool manual)
     {
+        LastCheck = DateTime.Now;
+        Error = error;
         if (error != null)
         {
+            Status = State.Failed;
             if (manual) Arca.Notify(L.F("Couldn't check for updates: {0}", error));
-            return;
         }
-        Version v;
-        if (tag != null && url != null && Version.TryParse(tag.Split('-')[0], out v) && Pad(v) > Current)
+        else
         {
-            bool fresh = Available != tag;
-            Available = tag;
-            downloadUrl = url;
-            if (fresh || manual) Arca.Notify(L.F("arca {0} is available. Click here to update.", tag), Install);
+            Version v;
+            if (tag != null && url != null && Version.TryParse(tag.Split('-')[0], out v) && Pad(v) > Current)
+            {
+                bool fresh = Available != tag;
+                Available = tag;
+                downloadUrl = url;
+                Status = State.Available;
+                if (fresh || manual) Arca.Notify(L.F("arca {0} is available. Click here to update.", tag), Install);
+            }
+            else
+            {
+                Status = State.UpToDate;
+                if (manual) Arca.Notify(L.F("arca is up to date (v{0}).", CurrentText));
+            }
         }
-        else if (manual) Arca.Notify(L.F("arca is up to date (v{0}).", CurrentText));
+        Raise();
+    }
+
+    static void Raise()
+    {
+        var c = Changed;
+        if (c != null) c();
     }
 
     static Version Pad(Version v)

@@ -1,5 +1,6 @@
 // The Recycle Bin in the tray: open, empty, auto-empty over a size limit (formerly vacua).
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Windows.Forms;
 
@@ -7,6 +8,35 @@ class BinModule : Module
 {
     public override string Id { get { return "bin"; } }
     public override string Title { get { return L.T("Recycle Bin"); } }
+    public override string Description { get { return L.T("The Recycle Bin next to the clock. Open it, empty it, or let it empty itself when it gets too big."); } }
+    public override string Glyph { get { return ""; } }
+
+    public override IList<Setting> Settings
+    {
+        get
+        {
+            return new[]
+            {
+                new Setting("doubleclick", SettingKind.Bool, "Open on double-click", "Turn off to open with a single click"),
+                new Setting("confirm", SettingKind.Bool, "Ask before emptying", "Show the usual Windows confirmation"),
+                new Setting("auto", SettingKind.Bool, "Empty automatically", "Without asking, once the bin is bigger than the limit below"),
+                new Setting("limit_gb", SettingKind.Number, "Size limit, GB", "Fractions work too, like 2.5"),
+            };
+        }
+    }
+
+    public override IList<string> Usage
+    {
+        get
+        {
+            return new[]
+            {
+                L.T("Double-click the bin icon to open the Recycle Bin."),
+                L.T("Right-click it: Empty Recycle Bin is the first item."),
+                L.T("The icon gets a dot when there's something inside. Hover over it to see how much."),
+            };
+        }
+    }
 
     const uint NoConfirmation = 1, NoProgressUI = 2, NoSound = 4;
 

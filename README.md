@@ -15,31 +15,44 @@
 
 ---
 
-*arca* is Latin for "chest". It's one small exe that keeps a few handy Windows tools in the tray:
-a light/dark theme switch, the Recycle Bin, and shortcuts for working with windows.
-Turn on the ones you need, ignore the rest.
+*arca* is Latin for "chest". It's a small Windows app that collects a few handy tools in one place:
+a light/dark theme switch, the Recycle Bin next to the clock, and shortcuts for working with windows.
+Open arca, turn on what you need, set it up, and close it. The tools keep running in the tray.
 
-- **Tiny.** One ~55 KB exe, nothing to install, nothing running in the background except the tray icons.
-- **Native look.** Icons use the same system font as the rest of the tray and follow your taskbar's light or dark mode.
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/window-tools-en-dark.png">
+    <img src="docs/window-tools-en-light.png" width="820" alt="arca window with the list of tools">
+  </picture>
+</p>
+
+- **One place for everything.** Every tool has its own page with a description, an on/off switch and its settings.
+- **Looks like Windows 11.** Mica background, your accent colour, light and dark theme, following the system.
+- **Tiny.** One ~110 KB exe, nothing to install, no background services.
 - **Updates itself** from GitHub Releases.
 - **English and Russian**, following your Windows language.
 
 ## Download
 
 **[⬇ arca.exe](https://github.com/ellarupion/arca/releases/latest/download/arca.exe)** — put it anywhere and run it.
-Needs .NET Framework 4, which is already part of Windows 10 and 11.
+Needs .NET Framework 4.6.2 or newer, which is already part of Windows 10 and 11.
 
 > Windows may show *"Windows protected your PC"* the first time, because the exe isn't code-signed.
 > Click **More info → Run anyway**.
 
-## What's inside
+## Tools
 
-### The main menu
+### Recycle Bin
 
-Click the box icon next to the clock. From here you switch tools on and off, change the language,
-turn on autostart and check for updates.
+The Recycle Bin next to the clock. **Double click** opens it, **right click** has *Empty Recycle Bin* as the first item.
+It can empty itself once it grows past a size limit, and the icon gets a dot when there's something inside.
 
-<p align="center"><img src="docs/menu-en.png" width="640" alt="arca main menu with the Window tools submenu"></p>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/window-bin-en-dark.png">
+    <img src="docs/window-bin-en-light.png" width="820" alt="Recycle Bin settings">
+  </picture>
+</p>
 
 ### Window tools
 
@@ -50,31 +63,33 @@ Shortcuts that work on whatever window is active:
 - **Keep on top** pins a window above all others. Press again to release it.
 - **Hide to tray** takes the window off the taskbar and gives it its own tray icon. Click the icon to bring it back.
 - **Transparency** goes down to 20% in 10% steps.
-- **Alt + drag** moves a window by grabbing it anywhere, not just the title bar. It's off by default, because some apps use Alt + click themselves.
+- **Alt + drag** moves a window by grabbing it anywhere. It's off by default, because some apps use Alt + click themselves.
 
-When arca exits, every window goes back to normal. If arca gets killed, hidden windows reappear the next time it starts.
+To change a shortcut, click it in arca and press the new one. Backspace turns it off.
+When arca exits, every window goes back to normal.
 
-<table>
-  <tr>
-    <td width="50%" valign="top">
-      <h3>Light/dark theme</h3>
-      <p><b>Click</b> the ◐ icon to switch the Windows theme.<br>
-      <b>Right click</b> to switch on a schedule, 07:00 light and 19:00 dark by default.</p>
-      <p>A manual switch stays until the next scheduled one.</p>
-      <img src="docs/theme-en.png" alt="Theme menu">
-    </td>
-    <td width="50%" valign="top">
-      <h3>Recycle Bin</h3>
-      <p><b>Double click</b> to open the bin. <b>Right click</b>: <i>Empty Recycle Bin</i> comes first.</p>
-      <p>Can empty itself once it grows past a size limit. The icon gets a dot when there's something inside.</p>
-      <img src="docs/bin-en.png" alt="Recycle Bin menu">
-    </td>
-  </tr>
-</table>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/window-windows-en-dark.png">
+    <img src="docs/window-windows-en-light.png" width="820" alt="Window tools settings">
+  </picture>
+</p>
 
-## Settings
+### Light/dark theme
 
-Everything is in `arca.ini` next to the exe (**Settings…** in the menu opens it). Changes apply as soon as you save.
+Click the ◐ icon next to the clock to switch the Windows theme, or let arca switch it on a schedule
+(07:00 light and 19:00 dark by default). A manual switch stays until the next scheduled one.
+
+## How it runs
+
+- Opening `arca.exe` shows the window. Closing the window keeps arca in the tray, and the box icon next to the clock brings it back.
+- With **Start with Windows** on, arca starts quietly in the tray.
+- To quit completely, use **Exit** in the tray menu or **Quit** in Settings. Every window goes back to normal.
+
+## Settings file
+
+Everything you set in the window is saved to `arca.ini` next to the exe, so arca is portable.
+You can also edit the file by hand; changes apply as soon as you save.
 
 ```ini
 [arca]
@@ -103,9 +118,6 @@ unfade=Ctrl+Win+PageUp
 alt_drag=0
 ```
 
-Shortcuts take `Ctrl`, `Alt`, `Shift`, `Win` and any key name (`T`, `F9`, `PageUp`, `Space`…).
-Leave one empty to turn it off. If another app already uses a shortcut, arca tells you.
-
 ## Good to know
 
 - Windows of apps running **as administrator** can only be changed when arca runs as administrator too.
@@ -115,13 +127,13 @@ Leave one empty to turn it off. If another app already uses a shortcut, arca tel
 
 ## Build from source
 
-The C# compiler ships with Windows, so there's nothing to install:
+The C# compiler and WPF ship with Windows, so there's nothing to install:
 
 ```
 build.cmd
 ```
 
-The README images are drawn from the real menus by [`docs/render.cs`](docs/render.cs).
+The banner and shortcut images are drawn by [`docs/render.cs`](docs/render.cs).
 
 ## License
 

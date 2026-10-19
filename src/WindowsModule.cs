@@ -12,6 +12,46 @@ class WindowsModule : Module
 {
     public override string Id { get { return "windows"; } }
     public override string Title { get { return L.T("Window tools"); } }
+    public override string Description { get { return L.T("Keep any window on top, hide it to the tray, make it see-through, or move it by grabbing anywhere."); } }
+    public override string Glyph { get { return ""; } }
+
+    public override IList<Setting> Settings
+    {
+        get
+        {
+            return new[]
+            {
+                new Setting("on_top", SettingKind.Hotkey, "Keep on top", "Pins the active window above all others. Press again to release"),
+                new Setting("hide", SettingKind.Hotkey, "Hide to tray", "Click the window's tray icon to bring it back"),
+                new Setting("fade", SettingKind.Hotkey, "More transparent", "Down to 20%, in 10% steps"),
+                new Setting("unfade", SettingKind.Hotkey, "Less transparent", "Back up to fully opaque"),
+                new Setting("alt_drag", SettingKind.Bool, "Move windows with Alt + drag", "Grab a window anywhere, not just the title bar"),
+            };
+        }
+    }
+
+    public override IList<string> Usage
+    {
+        get
+        {
+            return new[]
+            {
+                L.T("Shortcuts work on the active window."),
+                L.T("When arca exits, every window goes back to normal."),
+                L.T("Windows of apps running as administrator need arca to run as administrator too."),
+            };
+        }
+    }
+
+    // While the window records a new shortcut, ours must not fire.
+    public override void SuspendShortcuts(bool suspend)
+    {
+        suspended = suspend;
+        if (keys == null) return;
+        keys.Clear();
+        keySig = null;
+        if (!suspend) Tick();
+    }
 
     // Windows hidden to the tray are listed here, so they come back even if arca is killed.
     static readonly string HiddenFile = Path.ChangeExtension(Application.ExecutablePath, ".hidden");
@@ -25,6 +65,7 @@ class WindowsModule : Module
 
     Hotkeys keys;
     string keySig;
+    bool suspended;
 
     IntPtr hook;
     Native.LowLevelMouseProc hookProc;
@@ -61,7 +102,7 @@ class WindowsModule : Module
     public override void Tick()
     {
         string sig = string.Join("|", new[] { "on_top", "hide", "fade", "unfade" }.Select(k => Ini.Get(Id, k)));
-        if (sig != keySig)
+        if (sig != keySig && !suspended)
         {
             keySig = sig;
             keys.Clear();
