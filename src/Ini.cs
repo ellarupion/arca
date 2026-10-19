@@ -80,7 +80,11 @@ static class Ini
                 var kv = line.Split(new[] { '=' }, 2);
                 if (kv.Length != 2) continue;
                 string id = section + "." + kv[0].Trim().ToLowerInvariant();
-                values[id] = kv[1].Trim();
+                string value = kv[1];
+                int comment = value.IndexOf(" ;");
+                if (comment < 0) comment = value.IndexOf("\t;");
+                if (comment >= 0) value = value.Substring(0, comment); // "auto=1   ; note"
+                values[id] = value.Trim();
                 seen.Add(id);
             }
         }
