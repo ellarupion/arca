@@ -6,12 +6,11 @@ using System.Windows.Forms;
 class BinModule : Module
 {
     public override string Id { get { return "bin"; } }
-    public override string Title { get { return "Recycle Bin"; } }
+    public override string Title { get { return L.T("Recycle Bin"); } }
 
     const uint NoConfirmation = 1, NoProgressUI = 2, NoSound = 4;
 
     NotifyIcon tray;
-    ToolStripMenuItem emptyItem, doubleItem, confirmItem, autoItem;
     long size, items;
     bool? shownFull;
 
@@ -25,28 +24,35 @@ class BinModule : Module
 
     protected override void OnStart()
     {
-        var menu = new ContextMenuStrip();
-        emptyItem = Shell.Bold(Shell.Item("Empty Recycle Bin", delegate { Empty(!Ini.GetBool(Id, "confirm"), 0); }));
-        doubleItem = Shell.Item("Open on double-click", delegate { Ini.SetBool(Id, "doubleclick", !Ini.GetBool(Id, "doubleclick")); Refresh(); });
-        confirmItem = Shell.Item("Ask before emptying", delegate { Ini.SetBool(Id, "confirm", !Ini.GetBool(Id, "confirm")); Refresh(); });
-        autoItem = Shell.Item("", delegate { Ini.SetBool(Id, "auto", !Ini.GetBool(Id, "auto")); Tick(); });
-        menu.Items.Add(emptyItem);
-        menu.Items.Add(Shell.Item("Open Recycle Bin", delegate { Open(); }));
-        menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(doubleItem);
-        menu.Items.Add(confirmItem);
-        menu.Items.Add(autoItem);
-        menu.Items.Add(Shell.Item("Edit settings…", delegate { Shell.OpenSettings(); }));
-        menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(TurnOffItem());
-        menu.Opening += delegate { Query(); Refresh(); };
-
-        tray = new NotifyIcon { ContextMenuStrip = menu };
+        tray = new NotifyIcon { ContextMenuStrip = Shell.Menu(BuildMenu) };
         tray.MouseClick += (s, e) => { if (e.Button == MouseButtons.Left && !Ini.GetBool(Id, "doubleclick")) Open(); };
         tray.MouseDoubleClick += (s, e) => { if (e.Button == MouseButtons.Left && Ini.GetBool(Id, "doubleclick")) Open(); };
         shownFull = null;
         Tick();
         tray.Visible = true;
+    }
+
+    void BuildMenu(ToolStripItemCollection menu)
+    {
+        Query();
+        Refresh();
+        var empty = Shell.Bold(Shell.Item(L.T("Empty Recycle Bin"), delegate { Empty(!Ini.GetBool(Id, "confirm"), 0); }));
+        empty.Enabled = items > 0;
+        menu.Add(empty);
+        menu.Add(Shell.Item(L.T("Open Recycle Bin"), delegate { Open(); }));
+        menu.Add(new ToolStripSeparator());
+        menu.Add(Toggle("Open on double-click", "doubleclick"));
+        menu.Add(Toggle("Ask before emptying", "confirm"));
+        menu.Add(Shell.Check(L.F("Auto-empty over {0:0.##} GB", Ini.GetDouble(Id, "limit_gb", 10)), Ini.GetBool(Id, "auto"),
+            delegate { Ini.SetBool(Id, "auto", !Ini.GetBool(Id, "auto")); Tick(); }));
+        menu.Add(Shell.Item(L.T("Edit settings…"), delegate { Shell.OpenSettings(); }));
+        menu.Add(new ToolStripSeparator());
+        menu.Add(TurnOffItem());
+    }
+
+    ToolStripMenuItem Toggle(string text, string key)
+    {
+        return Shell.Check(L.T(text), Ini.GetBool(Id, key), delegate { Ini.SetBool(Id, key, !Ini.GetBool(Id, key)); });
     }
 
     protected override void OnStop()
@@ -99,17 +105,12 @@ class BinModule : Module
             shownFull = full;
             Shell.SetIcon(tray, Shell.GlyphIcon("", full));
         }
-        tray.Text = full ? string.Format("Recycle Bin — {0} item{1}, {2}", items, items == 1 ? "" : "s", FormatSize(size)) : "Recycle Bin — empty";
-        emptyItem.Enabled = full;
-        doubleItem.Checked = Ini.GetBool(Id, "doubleclick");
-        confirmItem.Checked = Ini.GetBool(Id, "confirm");
-        autoItem.Text = string.Format("Auto-empty over {0:0.##} GB", Ini.GetDouble(Id, "limit_gb", 10));
-        autoItem.Checked = Ini.GetBool(Id, "auto");
+        tray.Text = full ? L.F("Recycle Bin — {0}, {1}", L.Items(items), FormatSize(size)) : L.T("Recycle Bin — empty");
     }
 
     static string FormatSize(long bytes)
     {
-        string[] units = { "B", "KB", "MB", "GB", "TB" };
+        string[] units = L.SizeUnits();
         double v = bytes;
         int i = 0;
         while (v >= 1024 && i < units.Length - 1) { v /= 1024; i++; }

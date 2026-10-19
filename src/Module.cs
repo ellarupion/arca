@@ -35,6 +35,6 @@ abstract class Module
 
     protected ToolStripMenuItem TurnOffItem()
     {
-        return Shell.Item("Turn off", delegate { Arca.SetEnabled(this, false); });
+        return Shell.Item(L.T("Turn off"),delegate { Arca.SetEnabled(this, false); });
     }
 }

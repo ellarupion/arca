@@ -92,6 +92,28 @@ static class Shell
         return text.Length <= 63 ? text : text.Substring(0, 62) + "…";
     }
 
+    // A menu rebuilt every time it opens, so it always shows the current state and language.
+    public static ContextMenuStrip Menu(Action<ToolStripItemCollection> build)
+    {
+        var menu = new ContextMenuStrip();
+        menu.Items.Add("…");
+        menu.Opening += (s, e) =>
+        {
+            var old = new ToolStripItem[menu.Items.Count];
+            menu.Items.CopyTo(old, 0);
+            menu.Items.Clear();
+            foreach (var item in old) item.Dispose();
+            build(menu.Items);
+            e.Cancel = false;
+        };
+        return menu;
+    }
+
+    public static ToolStripMenuItem Check(string text, bool on, EventHandler click)
+    {
+        return new ToolStripMenuItem(text, null, click) { Checked = on };
+    }
+
     public static ToolStripMenuItem Item(string text, EventHandler click)
     {
         return new ToolStripMenuItem(text, null, click);

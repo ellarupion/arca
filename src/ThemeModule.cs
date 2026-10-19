@@ -8,10 +8,9 @@ using Microsoft.Win32;
 class ThemeModule : Module
 {
     public override string Id { get { return "theme"; } }
-    public override string Title { get { return "Light/dark theme"; } }
+    public override string Title { get { return L.T("Light/dark theme"); } }
 
     NotifyIcon tray;
-    ToolStripMenuItem autoItem;
     TimeSpan lightAt, darkAt;
     bool auto;
     bool? lastScheduled, shown;
@@ -25,19 +24,21 @@ class ThemeModule : Module
 
     protected override void OnStart()
     {
-        var menu = new ContextMenuStrip();
-        menu.Items.Add(Shell.Bold(Shell.Item("Toggle theme", delegate { Toggle(); })));
-        autoItem = Shell.Item("", delegate { Ini.SetBool(Id, "auto", !auto); Tick(); });
-        menu.Items.Add(autoItem);
-        menu.Items.Add(Shell.Item("Edit schedule…", delegate { Shell.OpenSettings(); }));
-        menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(TurnOffItem());
-
-        tray = new NotifyIcon { ContextMenuStrip = menu };
+        tray = new NotifyIcon { ContextMenuStrip = Shell.Menu(BuildMenu) };
         tray.MouseClick += (s, e) => { if (e.Button == MouseButtons.Left) Toggle(); };
         lastScheduled = shown = null;
         Tick();
         tray.Visible = true;
+    }
+
+    void BuildMenu(ToolStripItemCollection items)
+    {
+        items.Add(Shell.Bold(Shell.Item(L.T("Toggle theme"), delegate { Toggle(); })));
+        items.Add(Shell.Check(L.F("Auto ({0:hh\\:mm} light, {1:hh\\:mm} dark)", lightAt, darkAt), auto,
+            delegate { Ini.SetBool(Id, "auto", !auto); Tick(); }));
+        items.Add(Shell.Item(L.T("Edit schedule…"), delegate { Shell.OpenSettings(); }));
+        items.Add(new ToolStripSeparator());
+        items.Add(TurnOffItem());
     }
 
     protected override void OnStop()
@@ -109,9 +110,7 @@ class ThemeModule : Module
             shown = light;
             Shell.SetIcon(tray, MakeIcon(light));
         }
-        tray.Text = "Theme — " + (light ? "light" : "dark");
-        autoItem.Text = string.Format("Auto ({0:hh\\:mm} light, {1:hh\\:mm} dark)", lightAt, darkAt);
-        autoItem.Checked = auto;
+        tray.Text = L.T(light ? "Theme — light" : "Theme — dark");
     }
 
     // ◐ drawn in the taskbar's contrast color.

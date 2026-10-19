@@ -1,9 +1,11 @@
 # arca
 
-*arca* is Latin for "chest": a box of tiny Windows tools that live in the tray.
+**English** · [Русский](README.ru.md)
+
+*arca* is Latin for "chest": a box of tiny Windows tools.
 
 One exe, ~50 KB, no installer, no dependencies, ~15 MB RAM. Every tool can be switched on or off,
-and arca updates itself from GitHub Releases.
+arca updates itself from GitHub Releases, and it speaks English and Russian.
 
 | Tool | What it does |
 | --- | --- |
@@ -21,6 +23,7 @@ Click the arca icon (a box) next to the clock for the main menu:
 
 - **Tools**: switch each tool on or off
 - **Settings…**: opens `arca.ini`
+- **Language**: same as Windows, English or Russian
 - **Start with Windows**
 - **Check for updates automatically** / **Check for updates now**
 
@@ -59,6 +62,7 @@ Apps running as administrator can only be changed when arca runs as administrato
 
 ```ini
 [arca]
+language=auto
 updates=1
 theme=1
 bin=1
@@ -83,6 +87,7 @@ unfade=Ctrl+Win+PageUp
 alt_drag=0
 ```
 
+`language` is `auto` (follow Windows), `en` or `ru`.
 Shortcuts take `Ctrl`, `Alt`, `Shift`, `Win` and any key name (`T`, `F9`, `PageUp`, `Space`…). Leave one empty to turn it off.
 
 ## Build from source

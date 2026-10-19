@@ -11,7 +11,7 @@ using System.Windows.Forms;
 class WindowsModule : Module
 {
     public override string Id { get { return "windows"; } }
-    public override string Title { get { return "Window tools"; } }
+    public override string Title { get { return L.T("Window tools"); } }
 
     // Windows hidden to the tray are listed here, so they come back even if arca is killed.
     static readonly string HiddenFile = Path.ChangeExtension(Application.ExecutablePath, ".hidden");
@@ -71,7 +71,7 @@ class WindowsModule : Module
             Register("fade", delegate { Target(h => Fade(h, -1)); }, failed);
             Register("unfade", delegate { Target(h => Fade(h, +1)); }, failed);
             if (failed.Count > 0)
-                Arca.Notify("Shortcut taken or not recognised: " + string.Join(", ", failed));
+                Arca.Notify(L.F("Shortcut taken or not recognised: {0}", string.Join(", ", failed)));
         }
 
         SetHook(Ini.GetBool(Id, "alt_drag"));
@@ -98,14 +98,14 @@ class WindowsModule : Module
         sub.DropDownItems.Add(Hint("More transparent", "fade"));
         sub.DropDownItems.Add(Hint("Less transparent", "unfade"));
         sub.DropDownItems.Add(new ToolStripSeparator());
-        sub.DropDownItems.Add(new ToolStripMenuItem("Move windows with Alt + drag", null,
+        sub.DropDownItems.Add(new ToolStripMenuItem(L.T("Move windows with Alt + drag"), null,
             delegate { Ini.SetBool(Id, "alt_drag", !Ini.GetBool(Id, "alt_drag")); Tick(); }) { Checked = Ini.GetBool(Id, "alt_drag") });
-        sub.DropDownItems.Add(Shell.Item("Edit shortcuts…", delegate { Shell.OpenSettings(); }));
+        sub.DropDownItems.Add(Shell.Item(L.T("Edit shortcuts…"), delegate { Shell.OpenSettings(); }));
 
         if (hidden.Count > 0)
         {
             sub.DropDownItems.Add(new ToolStripSeparator());
-            sub.DropDownItems.Add(Shell.Label("Hidden — click to show"));
+            sub.DropDownItems.Add(Shell.Label(L.T("Hidden — click to show")));
             foreach (var h in hidden.Keys.ToList())
             {
                 var hw = h;
@@ -115,7 +115,7 @@ class WindowsModule : Module
         if (pinned.Count > 0)
         {
             sub.DropDownItems.Add(new ToolStripSeparator());
-            sub.DropDownItems.Add(Shell.Label("On top — click to release"));
+            sub.DropDownItems.Add(Shell.Label(L.T("On top — click to release")));
             foreach (var h in pinned.ToList())
             {
                 var hw = h;
@@ -123,20 +123,20 @@ class WindowsModule : Module
             }
         }
         if (hidden.Count + pinned.Count + faded.Count > 0)
-            sub.DropDownItems.Add(Shell.Item("Reset all windows", delegate { OnStop(); OnStart(); }));
+            sub.DropDownItems.Add(Shell.Item(L.T("Reset all windows"), delegate { OnStop(); OnStart(); }));
         items.Add(sub);
     }
 
     ToolStripMenuItem Hint(string text, string key)
     {
         string spec = Ini.Get(Id, key);
-        return new ToolStripMenuItem(text) { ShortcutKeyDisplayString = spec.Length > 0 ? spec : "off", Enabled = false };
+        return new ToolStripMenuItem(L.T(text)) { ShortcutKeyDisplayString = spec.Length > 0 ? spec : L.T("off"), Enabled = false };
     }
 
     static string WindowTitle(IntPtr h)
     {
         string t = Native.WindowText(h);
-        if (t.Length == 0) t = "(untitled window)";
+        if (t.Length == 0) t = L.T("(untitled window)");
         return t.Length <= 60 ? t : t.Substring(0, 59) + "…";
     }
 
@@ -169,7 +169,7 @@ class WindowsModule : Module
             Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE);
         pinned.Remove(h);
         if (top && IsTop(h)) pinned.Add(h);
-        else if (top) Arca.Notify("Can't change this window. Apps running as administrator need arca to run as administrator too.");
+        else if (top) Arca.Notify(L.T("Can't change this window. Apps running as administrator need arca to run as administrator too."));
     }
 
     // ---- hide to tray
@@ -178,8 +178,8 @@ class WindowsModule : Module
     {
         if (hidden.ContainsKey(h)) return;
         var menu = new ContextMenuStrip();
-        menu.Items.Add(Shell.Bold(Shell.Item("Show", delegate { Restore(h, true); })));
-        menu.Items.Add(Shell.Item("Close window", delegate { Restore(h, false); Native.PostMessage(h, Native.WM_CLOSE, IntPtr.Zero, IntPtr.Zero); }));
+        menu.Items.Add(Shell.Bold(Shell.Item(L.T("Show"), delegate { Restore(h, true); })));
+        menu.Items.Add(Shell.Item(L.T("Close window"), delegate { Restore(h, false); Native.PostMessage(h, Native.WM_CLOSE, IntPtr.Zero, IntPtr.Zero); }));
         var tray = new NotifyIcon { Icon = WindowIcon(h), Text = Shell.Tip(WindowTitle(h)), ContextMenuStrip = menu, Visible = true };
         tray.MouseClick += (s, e) => { if (e.Button == MouseButtons.Left) Restore(h, true); };
         hidden[h] = tray;

@@ -54,7 +54,7 @@ static class Updater
     {
         if (error != null)
         {
-            if (manual) Arca.Notify("Couldn't check for updates: " + error);
+            if (manual) Arca.Notify(L.F("Couldn't check for updates: {0}", error));
             return;
         }
         Version v;
@@ -63,9 +63,9 @@ static class Updater
             bool fresh = Available != tag;
             Available = tag;
             downloadUrl = url;
-            if (fresh || manual) Arca.Notify("arca " + tag + " is available. Click here to update.", Install);
+            if (fresh || manual) Arca.Notify(L.F("arca {0} is available. Click here to update.", tag), Install);
         }
-        else if (manual) Arca.Notify("arca is up to date (v" + CurrentText + ").");
+        else if (manual) Arca.Notify(L.F("arca is up to date (v{0}).", CurrentText));
     }
 
     static Version Pad(Version v)
@@ -87,7 +87,7 @@ static class Updater
         catch (Exception e)
         {
             try { if (!File.Exists(Exe) && File.Exists(old)) File.Move(old, Exe); } catch (Exception) { }
-            Arca.Notify("Update failed: " + e.Message);
+            Arca.Notify(L.F("Update failed: {0}", e.Message));
             return;
         }
         Process.Start(Exe, "--updated");
